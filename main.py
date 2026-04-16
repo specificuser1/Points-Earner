@@ -4,7 +4,7 @@ from discord.ui import View, Button, Modal, TextInput
 import os
 import json
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from dotenv import load_dotenv
 
@@ -20,7 +20,6 @@ TRACKED_VCS = set()
 PAUSED = False
 DATA_LOCK = asyncio.Lock()
 
-# Default config
 DEFAULT_CONFIG = {
     "prefix": "!",
     "log_channel_id": "",
@@ -47,8 +46,8 @@ def load_config():
 
 load_config()
 
-TOKEN = os.getenv("BOT_TOKEN")if not TOKEN:
-    raise ValueError("BOT_TOKEN not found in .env file")
+TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:    raise ValueError("BOT_TOKEN not found in .env file")
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -71,23 +70,23 @@ def save_users():
         json.dump(users_data, f, indent=4)
 
 def get_user_data(member_id):
-    if member_id not in users_data:
-        users_data[str(member_id)] = {
+    mid = str(member_id)
+    if mid not in users_data:
+        users_data[mid] = {
             "available_points": 0,
             "total_earned": 0,
             "redeemed_count": 0,
             "daily_redeems": 0,
-            "last_redeem_date": datetime.utcnow().strftime("%Y-%m-%d"),
+            "last_redeem_date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             "blacklisted": False,
             "whitelisted": False
         }
-    return users_data[str(member_id)]
+    return users_data[mid]
 
 def save_user_data(member_id, data):
     users_data[str(member_id)] = data
     save_users()
 
-# Key Management
 def read_keys():
     if not os.path.exists(KEY_FILE):
         open(KEY_FILE, "w").close()
@@ -96,13 +95,12 @@ def read_keys():
     return keys
 
 def write_keys(keys):
-    with open(KEY_FILE, "w") as f:        f.write("\n".join(keys) + ("\n" if keys else ""))
-
+    with open(KEY_FILE, "w") as f:
+        f.write("\n".join(keys) + ("\n" if keys else ""))
 def log_redeemed(key, user_id):
     with open(REDEEMED_FILE, "a") as f:
-        f.write(f"{key} | {user_id} | {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"{key} | {user_id} | {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}\n")
 
-# Logging
 async def send_log(embed: discord.Embed):
     if LOG_CHANNEL_ID:
         channel = bot.get_channel(int(LOG_CHANNEL_ID))
@@ -122,7 +120,7 @@ async def on_ready():
 @bot.event
 async def on_member_join(member):
     data = get_user_data(member.id)
-    age_days = (datetime.utcnow() - member.created_at).days
+    age_days = (datetime.now(timezone.utc) - member.created_at).days
     if age_days < CONFIG["min_account_age_days"] and not data.get("whitelisted", False):
         data["blacklisted"] = True
         save_user_data(member.id, data)
@@ -143,20 +141,19 @@ async def public_panel(ctx):
 @bot.command(name="status")
 async def bot_status(ctx):
     keys = read_keys()
-    active_vcs = len([v for g in bot.guilds for v in g.voice_channels if v.id in TRACKED_VCS])
-    embed = discord.Embed(title="Bot Status", description="Full System Status", color=0x4A90E2, timestamp=datetime.utcnow())
-    embed.set_footer(text="Made By SUBHAN")    embed.add_field(name="State", value="Paused" if PAUSED else "Active")
+    embed = discord.Embed(title="Bot Status", description="Full System Status", color=0x4A90E2, timestamp=datetime.now(timezone.utc))
+    embed.set_footer(text="Power By SUBHAN")
+    embed.add_field(name="State", value="Paused" if PAUSED else "Active")
     embed.add_field(name="Available Keys", value=str(len(keys)))
-    embed.add_field(name="Tracked VCs", value=str(len(TRACKED_VCS)))
-    embed.add_field(name="Database Size", value=f"{len(users_data)} Users")
+    embed.add_field(name="Tracked VCs", value=str(len(TRACKED_VCS)))    embed.add_field(name="Database Size", value=f"{len(users_data)} Users")
     await ctx.send(embed=embed)
 
 @bot.command(name="admin")
 async def admin_panel(ctx):
     if not ctx.author.guild_permissions.administrator:
         return
-    embed = discord.Embed(title="Admin Control Panel", description="Manage bot functions securely.", color=0x2C2F33, timestamp=datetime.utcnow())
-    embed.set_footer(text="Made By SUBHAN")
+    embed = discord.Embed(title="Admin Control Panel", description="Manage bot functions securely.", color=0x2C2F33, timestamp=datetime.now(timezone.utc))
+    embed.set_footer(text="Power By SUBHAN")
     view = AdminView()
     await ctx.send(embed=embed, view=view)
 
@@ -171,10 +168,10 @@ async def on_command_error(ctx, error):
 def create_public_panel_embed():
     keys = read_keys()
     status = "Paused" if PAUSED else "Active"
-    embed = discord.Embed(title="Points Earner", 
-                          description="**How To Earn Points:**\n Join Voice Channels.\n Every Minute Bot Give 3 Points.\n ScreenShare to earn 5 points per minute.\n\n**Rules:**\n- AFK, Deafen and Mute No Points.\n- Max limit 300 points.\n- 90 Points 1 Key Redeem.\n- Daily limit: 2 keys.\n- Account Must 2 Weeks Old (Otherwise Auto Blacklist).", 
-                          color=0x1A1A1A, timestamp=datetime.utcnow())
-    embed.set_footer(text="Made By SUBHAN")
+    embed = discord.Embed(title="Warrior Points Earner", 
+                          description="**Kaise Points Kamaein:**\nSpecific Voice Channels join karein. Har minute 3 points milenge. Screen Share karein to 5 points.\n\n**Rules:**\n- AFK, Deafen ya Mute per points nahi milenge.\n- Max limit 300 points hai.\n- 90 points par 1 Key redeem hoti hai.\n- Daily limit: 2 keys.\n- Account 2 weeks se purana hona chahiye.", 
+                          color=0x1A1A1A, timestamp=datetime.now(timezone.utc))
+    embed.set_footer(text="Power By SUBHAN")
     embed.set_image(url=CONFIG.get("panel_image_url", ""))
     embed.set_thumbnail(url=CONFIG.get("panel_thumbnail_url", ""))
     embed.add_field(name="Live Stock", value=f"{len(keys)} Keys Available")
@@ -189,15 +186,15 @@ class PublicPanelView(View):
     @discord.ui.button(label="Check Points", style=discord.ButtonStyle.primary, custom_id="check_points")
     async def check_points(self, interaction: discord.Interaction):
         data = get_user_data(interaction.user.id)
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         if data["last_redeem_date"] != today:
             data["daily_redeems"] = 0
             data["last_redeem_date"] = today
             save_user_data(interaction.user.id, data)
-        embed = discord.Embed(title="Account Status", description=f"Profile: {interaction.user.display_name}\nUser ID: {interaction.user.id}", color=0x4A90E2, timestamp=datetime.utcnow())
-        embed.set_footer(text="Made By SUBHAN")
-        embed.add_field(name="Available Points", value=f"{data['available_points']}/{CONFIG['max_points_cap']}")
-        embed.add_field(name="Total All-Time Earning", value=str(data['total_earned']))
+
+        embed = discord.Embed(title="Account Status", description=f"Profile: {interaction.user.display_name}\nUser ID: {interaction.user.id}", color=0x4A90E2, timestamp=datetime.now(timezone.utc))
+        embed.set_footer(text="Power By SUBHAN")
+        embed.add_field(name="Available Points", value=f"{data['available_points']}/{CONFIG['max_points_cap']}")        embed.add_field(name="Total All-Time Earning", value=str(data['total_earned']))
         embed.add_field(name="Daily Key Limit", value=f"{data['daily_redeems']}/{CONFIG['daily_limit']}")
         embed.add_field(name="Redeemed Count", value=str(data['redeemed_count']))
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -205,7 +202,7 @@ class PublicPanelView(View):
     @discord.ui.button(label="Get Key", style=discord.ButtonStyle.success, custom_id="get_key")
     async def get_key(self, interaction: discord.Interaction):
         data = get_user_data(interaction.user.id)
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         if data["last_redeem_date"] != today:
             data["daily_redeems"] = 0
             data["last_redeem_date"] = today
@@ -238,15 +235,15 @@ class PublicPanelView(View):
             save_user_data(interaction.user.id, data)
 
         try:
-            dm_embed = discord.Embed(title="Key Redeemed", description=f"Aapki Key: `{redeemed_key}`\nShukriya Warrior!", color=0x00FF7F, timestamp=datetime.utcnow())
+            dm_embed = discord.Embed(title="Key Redeemed", description=f"Aapki Key: `{redeemed_key}`\nShukriya Warrior!", color=0x00FF7F, timestamp=datetime.now(timezone.utc))
             dm_embed.set_footer(text="Power By SUBHAN")
             await interaction.user.send(embed=dm_embed)
             embed = discord.Embed(title="Success", description="Key aapke DM mein bhej di gayi hai.", color=0x00FF7F)
             await interaction.response.send_message(embed=embed, ephemeral=True)
-                        log_e = discord.Embed(title="Key Redeemed", description=f"{interaction.user.mention} redeemed a key.", color=0x00FF7F)
+            
+            log_e = discord.Embed(title="Key Redeemed", description=f"{interaction.user.mention} redeemed a key.", color=0x00FF7F)
             await send_log(log_e)
-        except discord.Forbidden:
-            embed = discord.Embed(title="Failed", description="DMs band hain. Please DMs enable karein.", color=0xFF4444)
+        except discord.Forbidden:            embed = discord.Embed(title="Failed", description="DMs band hain. Please DMs enable karein.", color=0xFF4444)
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class AdminView(View):
@@ -263,7 +260,7 @@ class AdminView(View):
         keys = read_keys()
         with open(REDEEMED_FILE, "r") as f:
             redeemed_count = len([l for l in f if l.strip()])
-        embed = discord.Embed(title="Key Inventory", description="Current Stock Status", color=0x4A90E2, timestamp=datetime.utcnow())
+        embed = discord.Embed(title="Key Inventory", description="Current Stock Status", color=0x4A90E2, timestamp=datetime.now(timezone.utc))
         embed.set_footer(text="Power By SUBHAN")
         embed.add_field(name="Available", value=str(len(keys)))
         embed.add_field(name="Redeemed", value=str(redeemed_count))
@@ -292,13 +289,12 @@ class AdminView(View):
     @discord.ui.button(label="Pause/Resume Bot", style=discord.ButtonStyle.gray)
     async def toggle_pause(self, interaction: discord.Interaction):
         global PAUSED
-        PAUSED = not PAUSED        status = "Paused" if PAUSED else "Resumed"
+        PAUSED = not PAUSED
+        status = "Paused" if PAUSED else "Resumed"
         embed = discord.Embed(title="System Toggle", description=f"Bot status: {status}", color=0x4A90E2)
-        embed.set_footer(text="Power By SUBHAN")
-        await interaction.response.send_message(embed=embed)
+        embed.set_footer(text="Power By SUBHAN")        await interaction.response.send_message(embed=embed)
         await send_log(embed)
 
-# Modals for Admin
 class AddKeysModal(Modal, title="Add New Keys (Line by Line)"):
     keys_input = TextInput(label="Enter Keys (One per line)", style=discord.TextStyle.paragraph, required=True)
     async def on_submit(self, interaction: discord.Interaction):
@@ -341,11 +337,11 @@ class ManageUserModal(Modal, title="Manage User"):
         elif self.action == "remove_blacklist":
             data["blacklisted"] = False
             msg = f"User {uid} Blacklist se remove ho gaya."
-        elif self.action == "allow":            data["whitelisted"] = True
+        elif self.action == "allow":
+            data["whitelisted"] = True
             msg = f"User {uid} Allowed/Whitelisted."
         elif self.action == "edit_points":
-            try:
-                pts = int(self.value_input.value.strip())
+            try:                pts = int(self.value_input.value.strip())
                 data["available_points"] = pts
                 data["total_earned"] += pts
                 msg = f"User {uid} points updated to {pts}."
@@ -369,14 +365,11 @@ async def points_loop():
                 continue
 
             vc_state = member.voice
-            # AFK / Deaf / Mute check
             if vc_state.self_deaf or vc_state.self_mute or vc_state.channel.is_afk():
                 continue
 
             data = get_user_data(member.id)
-            age_days = (datetime.utcnow() - member.created_at.replace(tzinfo=None) - member.created_at.replace(tzinfo=None)).days
-            # Correct age calc
-            age_days = (datetime.utcnow() - member.created_at).days
+            age_days = (datetime.now(timezone.utc) - member.created_at).days
 
             if age_days < CONFIG["min_account_age_days"] and not data.get("whitelisted", False):
                 if not data["blacklisted"]:
@@ -390,13 +383,13 @@ async def points_loop():
 
             pts = CONFIG["points_stream"] if vc_state.self_stream else CONFIG["points_normal"]
             if data["available_points"] + pts <= CONFIG["max_points_cap"]:
-                data["available_points"] += pts            else:
+                data["available_points"] += pts
+            else:
                 diff = CONFIG["max_points_cap"] - data["available_points"]
                 if diff > 0:
                     data["available_points"] += diff
             data["total_earned"] += pts
             save_user_data(member.id, data)
-
 @points_loop.before_loop
 async def before_points():
     await bot.wait_until_ready()
