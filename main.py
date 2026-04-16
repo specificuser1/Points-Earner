@@ -4,13 +4,12 @@ from discord.ui import View, Button, Modal, TextInput
 import os
 import json
 import asyncio
-from datetime import datetime, timedelta, timezone
-import logging
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# -------------------- CONFIG & DATA --------------------
+# -------------------- CONFIG & PATHS --------------------
 CONFIG_PATH = "config.json"
 DATA_PATH = "user.json"
 KEY_FILE = "key.txt"
@@ -47,8 +46,8 @@ def load_config():
 load_config()
 
 TOKEN = os.getenv("BOT_TOKEN")
-if not TOKEN:    raise ValueError("BOT_TOKEN not found in .env file")
-
+if not TOKEN:
+    raise ValueError("BOT_TOKEN not found in .env file")
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -91,14 +90,13 @@ def read_keys():
     if not os.path.exists(KEY_FILE):
         open(KEY_FILE, "w").close()
     with open(KEY_FILE, "r") as f:
-        keys = [k.strip() for k in f.readlines() if k.strip()]
-    return keys
+        return [k.strip() for k in f.readlines() if k.strip()]
 
 def write_keys(keys):
     with open(KEY_FILE, "w") as f:
         f.write("\n".join(keys) + ("\n" if keys else ""))
-def log_redeemed(key, user_id):
-    with open(REDEEMED_FILE, "a") as f:
+
+def log_redeemed(key, user_id):    with open(REDEEMED_FILE, "a") as f:
         f.write(f"{key} | {user_id} | {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}\n")
 
 async def send_log(embed: discord.Embed):
@@ -131,7 +129,7 @@ async def on_member_join(member):
 @bot.command(name="panel")
 async def public_panel(ctx):
     if not ctx.author.guild_permissions.administrator:
-        await ctx.send(embed=discord.Embed(title="Access Denied", description="Sirf Admins is command ko use kar sakte hain.", color=0xFF4444))
+        await ctx.send(embed=discord.Embed(title="Access Denied", description="Only administrators can use this command.", color=0xFF4444))
         return
     
     embed = create_public_panel_embed()
@@ -141,13 +139,13 @@ async def public_panel(ctx):
 @bot.command(name="status")
 async def bot_status(ctx):
     keys = read_keys()
-    embed = discord.Embed(title="Bot Status", description="Full System Status", color=0x4A90E2, timestamp=datetime.now(timezone.utc))
+    embed = discord.Embed(title="Bot Status", description="System Overview", color=0x4A90E2, timestamp=datetime.now(timezone.utc))
     embed.set_footer(text="Power By SUBHAN")
     embed.add_field(name="State", value="Paused" if PAUSED else "Active")
     embed.add_field(name="Available Keys", value=str(len(keys)))
-    embed.add_field(name="Tracked VCs", value=str(len(TRACKED_VCS)))    embed.add_field(name="Database Size", value=f"{len(users_data)} Users")
+    embed.add_field(name="Tracked VCs", value=str(len(TRACKED_VCS)))
+    embed.add_field(name="Database Size", value=f"{len(users_data)} Users")
     await ctx.send(embed=embed)
-
 @bot.command(name="admin")
 async def admin_panel(ctx):
     if not ctx.author.guild_permissions.administrator:
@@ -161,7 +159,7 @@ async def admin_panel(ctx):
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
         return
-    embed = discord.Embed(title="Error", description=f"Koi internal error aaya: {str(error)}", color=0xFF4444)
+    embed = discord.Embed(title="Error", description=f"An internal error occurred: {str(error)}", color=0xFF4444)
     await ctx.send(embed=embed)
 
 # -------------------- EMBED GENERATORS --------------------
@@ -169,7 +167,7 @@ def create_public_panel_embed():
     keys = read_keys()
     status = "Paused" if PAUSED else "Active"
     embed = discord.Embed(title="Warrior Points Earner", 
-                          description="**Kaise Points Kamaein:**\nSpecific Voice Channels join karein. Har minute 3 points milenge. Screen Share karein to 5 points.\n\n**Rules:**\n- AFK, Deafen ya Mute per points nahi milenge.\n- Max limit 300 points hai.\n- 90 points par 1 Key redeem hoti hai.\n- Daily limit: 2 keys.\n- Account 2 weeks se purana hona chahiye.", 
+                          description="**How to Earn Points:**\nJoin specific voice channels. Earn 3 points per minute. Earn 5 points per minute while screen sharing.\n\n**Rules:**\n- No points for AFK, Deafen, or Mute status.\n- Maximum point cap is 300.\n- Redeem 1 key for 90 points.\n- Daily limit: 2 keys.\n- Account must be older than 2 weeks.", 
                           color=0x1A1A1A, timestamp=datetime.now(timezone.utc))
     embed.set_footer(text="Power By SUBHAN")
     embed.set_image(url=CONFIG.get("panel_image_url", ""))
@@ -194,9 +192,9 @@ class PublicPanelView(View):
 
         embed = discord.Embed(title="Account Status", description=f"Profile: {interaction.user.display_name}\nUser ID: {interaction.user.id}", color=0x4A90E2, timestamp=datetime.now(timezone.utc))
         embed.set_footer(text="Power By SUBHAN")
-        embed.add_field(name="Available Points", value=f"{data['available_points']}/{CONFIG['max_points_cap']}")        embed.add_field(name="Total All-Time Earning", value=str(data['total_earned']))
-        embed.add_field(name="Daily Key Limit", value=f"{data['daily_redeems']}/{CONFIG['daily_limit']}")
-        embed.add_field(name="Redeemed Count", value=str(data['redeemed_count']))
+        embed.add_field(name="Available Points", value=f"{data['available_points']}/{CONFIG['max_points_cap']}")
+        embed.add_field(name="Total All-Time Earnings", value=str(data['total_earned']))
+        embed.add_field(name="Daily Key Limit", value=f"{data['daily_redeems']}/{CONFIG['daily_limit']}")        embed.add_field(name="Total Redeemed", value=str(data['redeemed_count']))
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @discord.ui.button(label="Get Key", style=discord.ButtonStyle.success, custom_id="get_key")
@@ -209,21 +207,21 @@ class PublicPanelView(View):
             save_user_data(interaction.user.id, data)
 
         if data["blacklisted"]:
-            embed = discord.Embed(title="Access Restricted", description="Aapka account blacklist mein hai. Points ya keys redeem nahi kar sakte.", color=0xFF4444)
+            embed = discord.Embed(title="Access Restricted", description="Your account is blacklisted. You cannot earn points or redeem keys.", color=0xFF4444)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
         
         if data["available_points"] < CONFIG["key_cost"]:
-            embed = discord.Embed(title="Insufficient Points", description=f"Key ke liye {CONFIG['key_cost']} points chahiye. Aapke paas {data['available_points']} hain.", color=0xFF4444)
+            embed = discord.Embed(title="Insufficient Points", description=f"Keys require {CONFIG['key_cost']} points. You currently have {data['available_points']}.", color=0xFF4444)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
             
         if data["daily_redeems"] >= CONFIG["daily_limit"]:
-            embed = discord.Embed(title="Daily Limit Reached", description=f"Aapki daily key limit ({CONFIG['daily_limit']}/2) poori ho chuki hai.", color=0xFF4444)
+            embed = discord.Embed(title="Daily Limit Reached", description=f"You have reached your daily key limit ({CONFIG['daily_limit']}/2). Try again tomorrow.", color=0xFF4444)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         async with DATA_LOCK:
             keys = read_keys()
             if not keys:
-                embed = discord.Embed(title="Out of Stock", description="Abhi koi keys available nahi hain.", color=0xFF4444)
+                embed = discord.Embed(title="Out of Stock", description="No keys are currently available. Please check back later.", color=0xFF4444)
                 return await interaction.response.send_message(embed=embed, ephemeral=True)
 
             redeemed_key = keys.pop(0)
@@ -235,17 +233,17 @@ class PublicPanelView(View):
             save_user_data(interaction.user.id, data)
 
         try:
-            dm_embed = discord.Embed(title="Key Redeemed", description=f"Aapki Key: `{redeemed_key}`\nShukriya Warrior!", color=0x00FF7F, timestamp=datetime.now(timezone.utc))
+            dm_embed = discord.Embed(title="Key Redeemed", description=f"Your Key: `{redeemed_key}`\nThank you for participating!", color=0x00FF7F, timestamp=datetime.now(timezone.utc))
             dm_embed.set_footer(text="Power By SUBHAN")
             await interaction.user.send(embed=dm_embed)
-            embed = discord.Embed(title="Success", description="Key aapke DM mein bhej di gayi hai.", color=0x00FF7F)
+            embed = discord.Embed(title="Success", description="The key has been sent to your Direct Messages.", color=0x00FF7F)
             await interaction.response.send_message(embed=embed, ephemeral=True)
             
             log_e = discord.Embed(title="Key Redeemed", description=f"{interaction.user.mention} redeemed a key.", color=0x00FF7F)
             await send_log(log_e)
-        except discord.Forbidden:            embed = discord.Embed(title="Failed", description="DMs band hain. Please DMs enable karein.", color=0xFF4444)
+        except discord.Forbidden:
+            embed = discord.Embed(title="Failed", description="Unable to send DM. Please enable Direct Messages from server members.", color=0xFF4444)
             await interaction.response.send_message(embed=embed, ephemeral=True)
-
 class AdminView(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -291,27 +289,27 @@ class AdminView(View):
         global PAUSED
         PAUSED = not PAUSED
         status = "Paused" if PAUSED else "Resumed"
-        embed = discord.Embed(title="System Toggle", description=f"Bot status: {status}", color=0x4A90E2)
-        embed.set_footer(text="Power By SUBHAN")        await interaction.response.send_message(embed=embed)
+        embed = discord.Embed(title="System Toggle", description=f"Bot status changed to: {status}", color=0x4A90E2)
+        embed.set_footer(text="Power By SUBHAN")
+        await interaction.response.send_message(embed=embed)
         await send_log(embed)
-
-class AddKeysModal(Modal, title="Add New Keys (Line by Line)"):
+class AddKeysModal(Modal, title="Add New Keys"):
     keys_input = TextInput(label="Enter Keys (One per line)", style=discord.TextStyle.paragraph, required=True)
     async def on_submit(self, interaction: discord.Interaction):
         keys = [k.strip() for k in self.keys_input.value.split("\n") if k.strip()]
         if not keys:
-            return await interaction.response.send_message("Koi valid key nahi mili.", ephemeral=True)
+            return await interaction.response.send_message("No valid keys provided.", ephemeral=True)
         async with DATA_LOCK:
             current = read_keys()
             current.extend(keys)
             write_keys(current)
-        embed = discord.Embed(title="Keys Added", description=f"{len(keys)} keys successfully added.", color=0x00FF7F)
+        embed = discord.Embed(title="Keys Added", description=f"{len(keys)} keys successfully added to stock.", color=0x00FF7F)
         embed.set_footer(text="Power By SUBHAN")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class ManageUserModal(Modal, title="Manage User"):
     user_id_input = TextInput(label="User ID", placeholder="Enter Discord User ID", required=True)
-    value_input = TextInput(label="Value / Points", placeholder="Leave empty if not needed", required=False)
+    value_input = TextInput(label="Value / Points", placeholder="Leave empty if not required", required=False)
     
     def __init__(self, action: str):
         super().__init__()
@@ -327,26 +325,26 @@ class ManageUserModal(Modal, title="Manage User"):
         try:
             uid = int(self.user_id_input.value.strip())
         except ValueError:
-            return await interaction.response.send_message("Invalid User ID.", ephemeral=True)
+            return await interaction.response.send_message("Invalid User ID format.", ephemeral=True)
 
         data = get_user_data(uid)
         msg = ""
         if self.action == "add_blacklist":
             data["blacklisted"] = True
-            msg = f"User {uid} Blacklisted."
+            msg = f"User {uid} has been blacklisted."
         elif self.action == "remove_blacklist":
             data["blacklisted"] = False
-            msg = f"User {uid} Blacklist se remove ho gaya."
+            msg = f"User {uid} removed from blacklist."
         elif self.action == "allow":
             data["whitelisted"] = True
-            msg = f"User {uid} Allowed/Whitelisted."
+            msg = f"User {uid} whitelisted and bypassed age restriction."
         elif self.action == "edit_points":
-            try:                pts = int(self.value_input.value.strip())
-                data["available_points"] = pts
-                data["total_earned"] += pts
+            try:
+                pts = int(self.value_input.value.strip())
+                data["available_points"] = pts                data["total_earned"] += pts
                 msg = f"User {uid} points updated to {pts}."
             except ValueError:
-                return await interaction.response.send_message("Points must be a number.", ephemeral=True)
+                return await interaction.response.send_message("Points must be a valid number.", ephemeral=True)
 
         save_user_data(uid, data)
         embed = discord.Embed(title="User Updated", description=msg, color=0x4A90E2)
@@ -365,7 +363,7 @@ async def points_loop():
                 continue
 
             vc_state = member.voice
-            if vc_state.self_deaf or vc_state.self_mute or vc_state.channel.is_afk():
+            if vc_state.self_deaf or vc_state.self_mute or (vc_state.channel and vc_state.channel.is_afk()):
                 continue
 
             data = get_user_data(member.id)
@@ -390,9 +388,9 @@ async def points_loop():
                     data["available_points"] += diff
             data["total_earned"] += pts
             save_user_data(member.id, data)
+
 @points_loop.before_loop
-async def before_points():
-    await bot.wait_until_ready()
+async def before_points():    await bot.wait_until_ready()
 
 # -------------------- RUN --------------------
 if __name__ == "__main__":
