@@ -1,0 +1,13 @@
+{
+     "prefix": "!",
+     "log_channel_id": "LOG_CHANNEL_ID_HERE",
+     "tracked_vcs": ["VC_ID_1", "VC_ID_2"],
+     "points_normal": 3,
+     "points_stream": 5,
+     "max_points_cap": 300,
+     "key_cost": 90,
+     "daily_limit": 2,
+     "min_account_age_days": 14,
+     "panel_image_url": "",
+     "panel_thumbnail_url": ""
+   }
